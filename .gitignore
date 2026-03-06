@@ -1,0 +1,31 @@
+# Виртуальное окружение
+venv/
+ENV/
+env/
+.env
+.venv
+
+# Кэш Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Локальная база данных (SQLite)
+*.db
+*.sqlite3
+
+# Docker
+.dockerignore
+
+# Логи
+*.log
+
+# Настройки IDE (Kodik/VS Code)
+.vscode/
+.idea/
+.kodik/
+
+# Windows
+Thumbs.db
+Desktop.ini
