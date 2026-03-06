@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card p-4">
+            <h2 class="text-center mb-4">Verify Your Email</h2>
+            <p class="text-center text-muted">We've sent a 5-digit code to <strong>{{ user.email }}</strong>. It expires in 5 minutes.</p>
+            <form method="POST" action="">
+                {{ form.hidden_tag() }}
+                <div class="mb-3">
+                    {{ form.code.label(class="form-label") }}
+                    {% if form.code.errors %}
+                        {{ form.code(class="form-control is-invalid text-center fs-2") }}
+                        <div class="invalid-feedback text-center">
+                            {% for error in form.code.errors %}
+                                <span>{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        {{ form.code(class="form-control text-center fs-2", placeholder="00000", maxlength="5") }}
+                    {% endif %}
+                </div>
+                <div class="d-grid">
+                    {{ form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+            <div class="text-center mt-3">
+                <small class="text-muted">
+                    Didn't get the code? <a href="{{ url_for('register') }}" class="text-decoration-none">Try again</a>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
