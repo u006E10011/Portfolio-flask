@@ -1,8 +1,9 @@
 import os
 import random
 import string
+import json
 from datetime import datetime, timedelta
-from flask import Flask, render_template, redirect, url_for, flash, request, jsonify
+from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, login_user, logout_user, current_user, login_required
@@ -66,6 +67,10 @@ def send_verification_email(user):
         return False
 
 # Basic Routes
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -237,8 +242,27 @@ def settings():
 def new_project():
     form = ProjectForm()
     if form.validate_on_submit():
-        # ... (existing code)
-        pass
+        project = Project(
+            title=form.title.data,
+            description=form.description.data,
+            stack=[s.strip() for s in form.stack.data.split(',') if s.strip()],
+            author=current_user
+        )
+        db.session.add(project)
+        db.session.commit()
+
+        files = request.files.getlist('images')
+        if files:
+            for i, file in enumerate(files):
+                if file and file.filename:
+                    picture_file = save_picture(file)
+                    is_main = (i == 0)  # first image is main
+                    img = ProjectImage(image_path=picture_file, project=project, is_main=is_main)
+                    db.session.add(img)
+            db.session.commit()
+
+        flash('Your project has been created!', 'success')
+        return redirect(url_for('profile', username=current_user.username))
     return render_template('project_form.html', title='New Project', form=form, ProjectImage=ProjectImage)
 
 @app.route('/project/<int:project_id>/edit', methods=['GET', 'POST'])
@@ -250,8 +274,37 @@ def edit_project(project_id):
     
     form = ProjectForm()
     if form.validate_on_submit():
-        # ... (existing code)
-        pass
+        project.title = form.title.data
+        project.description = form.description.data
+        project.stack = [s.strip() for s in form.stack.data.split(',') if s.strip()]
+
+        # Apply drag-and-drop order for existing images (first becomes cover)
+        image_order_raw = request.form.get('image_order')
+        if image_order_raw:
+            try:
+                order_ids = [int(i) for i in json.loads(image_order_raw)]
+            except (ValueError, TypeError, json.JSONDecodeError):
+                order_ids = []
+            if order_ids:
+                for img in project.images:
+                    img.is_main = False
+                for idx, img_id in enumerate(order_ids):
+                    img = ProjectImage.query.get(img_id)
+                    if img and img.project_id == project.id:
+                        img.is_main = (idx == 0)
+
+        files = request.files.getlist('images')
+        if files and files[0].filename:
+            for file in files:
+                if file and file.filename:
+                    picture_file = save_picture(file)
+                    has_main = project.images.filter_by(is_main=True).first() is not None
+                    img = ProjectImage(image_path=picture_file, project=project, is_main=not has_main)
+                    db.session.add(img)
+
+        db.session.commit()
+        flash('Your project has been updated!', 'success')
+        return redirect(url_for('project_detail', project_id=project.id))
     elif request.method == 'GET':
         form.title.data = project.title
         form.description.data = project.description
