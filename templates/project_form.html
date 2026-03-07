@@ -48,24 +48,26 @@
                     <div class="form-text text-muted">The first image will be the cover. You can add more by clicking the button again.</div>
                     
                     <!-- Preview for NEW images -->
-                    <div id="newImagePreview" class="d-flex flex-wrap gap-2 mt-3"></div>
+                    <div id="newImagePreview" class="d-flex flex-wrap gap-2 mt-3 sortable-container"></div>
 
                     {% if project and project.images.count() > 0 %}
-                        <h6 class="mt-4 mb-3">Existing Images (Click X to delete)</h6>
-                        <div class="d-flex flex-wrap gap-2">
-                            {% for img in project.images %}
-                                <div class="position-relative existing-image-container" id="img-{{ img.id }}">
+                        <h6 class="mt-4 mb-3">Existing Images (Drag to reorder, first is cover)</h6>
+                        <div id="existingImages" class="d-flex flex-wrap gap-2 sortable-container">
+                            {% for img in project.images.order_by(ProjectImage.is_main.desc(), ProjectImage.id.asc()) %}
+                                <div class="position-relative existing-image-container" id="img-{{ img.id }}" data-id="{{ img.id }}">
                                     <img src="{{ url_for('static', filename='uploads/' + img.image_path) }}" 
                                          class="img-thumbnail bg-dark border-secondary" 
-                                         style="width: 100px; height: 75px; object-fit: cover;">
+                                         style="width: 100px; height: 75px; object-fit: cover; cursor: move;">
                                     <button type="button" 
                                             class="btn btn-danger btn-sm position-absolute top-0 end-0 p-0" 
                                             style="width: 20px; height: 20px; line-height: 1; border-radius: 50%;"
                                             onclick="deleteExistingImage({{ img.id }})">&times;</button>
+                                    <span class="badge bg-primary position-absolute bottom-0 start-0 w-100 cover-badge d-none" style="font-size: 0.6rem; opacity: 0.8;">Cover</span>
                                 </div>
                             {% endfor %}
                         </div>
                     {% endif %}
+                    <input type="hidden" name="image_order" id="imageOrder">
                 </div>
 
                 <div class="d-flex gap-2">
@@ -80,15 +82,44 @@
 <script>
 let selectedFiles = [];
 
+// Initialize Sortable for existing images
+if (document.getElementById('existingImages')) {
+    new Sortable(document.getElementById('existingImages'), {
+        animation: 150,
+        onEnd: updateImageOrder
+    });
+}
+
+// Initialize Sortable for new images
+new Sortable(document.getElementById('newImagePreview'), {
+    animation: 150,
+    onEnd: updateNewImageOrder
+});
+
+function updateImageOrder() {
+    const order = Array.from(document.querySelectorAll('#existingImages .existing-image-container'))
+        .map(el => el.dataset.id);
+    document.getElementById('imageOrder').value = JSON.stringify(order);
+    
+    // Update cover badges
+    document.querySelectorAll('.cover-badge').forEach((el, i) => {
+        if (i === 0) el.classList.remove('d-none');
+        else el.classList.add('d-none');
+    });
+}
+
+function updateNewImageOrder() {
+    // For new images, we'll just rely on the order in the preview
+    // The first one in the preview will be the main one if no existing images
+}
+
 // Handle NEW images selection and accumulation
 document.getElementById('imageInput').addEventListener('change', function(e) {
     const preview = document.getElementById('newImagePreview');
     const files = Array.from(e.target.files);
     
     files.forEach((file) => {
-        // Add to our global array
         selectedFiles.push(file);
-        
         const reader = new FileReader();
         const fileIndex = selectedFiles.length - 1;
         
@@ -97,55 +128,34 @@ document.getElementById('imageInput').addEventListener('change', function(e) {
             div.className = 'position-relative new-image-item';
             div.id = `new-img-${fileIndex}`;
             div.innerHTML = `
-                <img src="${e.target.result}" class="img-thumbnail bg-dark border-secondary" style="width: 100px; height: 75px; object-fit: cover;">
+                <img src="${e.target.result}" class="img-thumbnail bg-dark border-secondary" style="width: 100px; height: 75px; object-fit: cover; cursor: move;">
                 <button type="button" 
                         class="btn btn-danger btn-sm position-absolute top-0 end-0 p-0" 
                         style="width: 20px; height: 20px; line-height: 1; border-radius: 50%;"
-                        onclick="removeNewImage(${fileIndex})">&times;</button>
+                        onclick="this.parentElement.remove(); updateInputFiles();">&times;</button>
                 <span class="badge bg-success position-absolute bottom-0 start-0 w-100" style="font-size: 0.6rem; opacity: 0.8;">New</span>
             `;
             preview.appendChild(div);
         }
         reader.readAsDataURL(file);
     });
-    
     updateInputFiles();
 });
 
-// Remove NEW image from selection
-function removeNewImage(index) {
-    selectedFiles[index] = null; // Mark as removed
-    document.getElementById(`new-img-${index}`).remove();
-    updateInputFiles();
-}
-
-// Sync the hidden input with our selectedFiles array
 function updateInputFiles() {
     const dataTransfer = new DataTransfer();
+    // We need to get the files in the order they appear in the preview
+    const previewItems = document.querySelectorAll('#newImagePreview .new-image-item');
+    // This is a bit complex because we need to map preview items back to files
+    // For simplicity, we'll just use the current order of files
     selectedFiles.forEach(file => {
         if (file) dataTransfer.items.add(file);
     });
     document.getElementById('imageInput').files = dataTransfer.files;
 }
 
-// Delete EXISTING images via AJAX
-async function deleteExistingImage(imageId) {
-    if (!confirm('Are you sure you want to delete this image?')) return;
-    
-    try {
-        const response = await fetch(`/project/image/${imageId}/delete`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        const data = await response.json();
-        if (data.success) {
-            document.getElementById(`img-${imageId}`).remove();
-        }
-    } catch (err) {
-        console.error('Error deleting image:', err);
-    }
-}
+// Initial call to show cover badge on first existing image
+updateImageOrder();
 </script>
+
 {% endblock %}

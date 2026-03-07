@@ -237,26 +237,9 @@ def settings():
 def new_project():
     form = ProjectForm()
     if form.validate_on_submit():
-        project = Project(title=form.title.data, 
-                         description=form.description.data,
-                         stack=[s.strip() for s in form.stack.data.split(',') if s.strip()],
-                         author=current_user)
-        db.session.add(project)
-        db.session.commit()
-        
-        files = request.files.getlist('images')
-        if files:
-            for i, file in enumerate(files):
-                if file and file.filename:
-                    picture_file = save_picture(file)
-                    is_main = (i == 0) # First image is main
-                    img = ProjectImage(image_path=picture_file, project=project, is_main=is_main)
-                    db.session.add(img)
-            db.session.commit()
-            
-        flash('Your project has been created!', 'success')
-        return redirect(url_for('profile', username=current_user.username))
-    return render_template('project_form.html', title='New Project', form=form)
+        # ... (existing code)
+        pass
+    return render_template('project_form.html', title='New Project', form=form, ProjectImage=ProjectImage)
 
 @app.route('/project/<int:project_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -267,31 +250,14 @@ def edit_project(project_id):
     
     form = ProjectForm()
     if form.validate_on_submit():
-        project.title = form.title.data
-        project.description = form.description.data
-        project.stack = [s.strip() for s in form.stack.data.split(',') if s.strip()]
-        
-        files = request.files.getlist('images')
-        if files and files[0].filename:
-            # If new images uploaded, we can either append or replace. 
-            # For now, let's append new ones.
-            for file in files:
-                if file and file.filename:
-                    picture_file = save_picture(file)
-                    # Check if project already has a main image
-                    has_main = project.images.filter_by(is_main=True).first() is not None
-                    img = ProjectImage(image_path=picture_file, project=project, is_main=not has_main)
-                    db.session.add(img)
-        
-        db.session.commit()
-        flash('Your project has been updated!', 'success')
-        return redirect(url_for('project_detail', project_id=project.id))
+        # ... (existing code)
+        pass
     elif request.method == 'GET':
         form.title.data = project.title
         form.description.data = project.description
         form.stack.data = ', '.join(project.stack)
     
-    return render_template('project_form.html', title='Edit Project', form=form, project=project)
+    return render_template('project_form.html', title='Edit Project', form=form, project=project, ProjectImage=ProjectImage)
 
 @app.route('/project/image/<int:image_id>/delete', methods=['POST'])
 @login_required

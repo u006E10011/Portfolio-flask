@@ -24,9 +24,8 @@
         <div class="d-flex flex-wrap gap-2 mb-4">
             {% for skill in user.skills %}
                 {% set colors = ['#238636', '#1f6feb', '#8957e5', '#d29922', '#f85149'] %}
-                {% set color = colors[loop.index0 % colors.length] if colors.length else '#30363d' %}
-                <span class="badge border border-secondary" style="background-color: {{ colors[loop.index0 % 5] }}; color: #fff;">{{ skill }}</span>
-            {% else %}
+                <span class="badge border border-secondary" style="background-color: {{ colors[loop.index0 % 5] }}; color: #ffffff;">{{ skill }}</span>
+{% else %}
                 <small class="text-muted">No skills listed.</small>
             {% endfor %}
         </div>
@@ -73,7 +72,7 @@
                             <div class="d-flex flex-wrap gap-1">
                                 {% set colors = ['#238636', '#1f6feb', '#8957e5', '#d29922', '#f85149'] %}
                                 {% for tech in project.stack %}
-                                    <span class="badge border border-secondary" style="background-color: {{ colors[loop.index0 % 5] }}; color: #fff; font-size: 0.7rem;">{{ tech }}</span>
+                                    <span class="badge border border-secondary" style="background-color: {{ colors[loop.index0 % 5] }}; color: #ffffff; font-size: 0.7rem;">{{ tech }}</span>
                                 {% endfor %}
                             </div>
                         </div>
