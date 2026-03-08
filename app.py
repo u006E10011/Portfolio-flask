@@ -237,8 +237,25 @@ def settings():
 def new_project():
     form = ProjectForm()
     if form.validate_on_submit():
-        # ... (existing code)
-        pass
+        project = Project(title=form.title.data, 
+                         description=form.description.data,
+                         stack=[s.strip() for s in form.stack.data.split(',') if s.strip()],
+                         author=current_user)
+        db.session.add(project)
+        db.session.commit()
+        
+        files = request.files.getlist('images')
+        if files:
+            for i, file in enumerate(files):
+                if file and file.filename:
+                    picture_file = save_picture(file)
+                    is_main = (i == 0) # First image is main
+                    img = ProjectImage(image_path=picture_file, project=project, is_main=is_main)
+                    db.session.add(img)
+            db.session.commit()
+            
+        flash('Your project has been created!', 'success')
+        return redirect(url_for('profile', username=current_user.username))
     return render_template('project_form.html', title='New Project', form=form, ProjectImage=ProjectImage)
 
 @app.route('/project/<int:project_id>/edit', methods=['GET', 'POST'])
@@ -250,8 +267,42 @@ def edit_project(project_id):
     
     form = ProjectForm()
     if form.validate_on_submit():
-        # ... (existing code)
-        pass
+        project.title = form.title.data
+        project.description = form.description.data
+        project.stack = [s.strip() for s in form.stack.data.split(',') if s.strip()]
+        
+        # Handle existing images order and main image
+        import json
+        image_order_raw = request.form.get('image_order')
+        if image_order_raw:
+            try:
+                image_order = json.loads(image_order_raw)
+                # Reset all to not main
+                for img in project.images:
+                    img.is_main = False
+                
+                # Set the first one in order as main
+                if image_order:
+                    main_img_id = int(image_order[0])
+                    main_img = ProjectImage.query.get(main_img_id)
+                    if main_img:
+                        main_img.is_main = True
+            except:
+                pass
+
+        files = request.files.getlist('images')
+        if files and files[0].filename:
+            for file in files:
+                if file and file.filename:
+                    picture_file = save_picture(file)
+                    # If project has no images at all, first new one is main
+                    has_images = project.images.count() > 0
+                    img = ProjectImage(image_path=picture_file, project=project, is_main=not has_images)
+                    db.session.add(img)
+        
+        db.session.commit()
+        flash('Your project has been updated!', 'success')
+        return redirect(url_for('project_detail', project_id=project.id))
     elif request.method == 'GET':
         form.title.data = project.title
         form.description.data = project.description
